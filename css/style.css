@@ -1,40 +1,124 @@
-
 #map {
-    width: 960px;   
-    height: 800px;    
+    position: relative;
+    left: 10px;
+    top:10px;
+    height: 800px;
+    width: 940px;
+    border-style: solid;
+    border-color: rgba(0, 87, 119, 1);
+    border-width: 2;
     display: inline-block;
-    }
+}
 
-    #panel {    
-        width: 16%;    
-        padding: 10px;
-        display: inline-block;
-        vertical-align: top;
-        text-align: center;
-        line-height: 42px;
-    }
+.sequence-control-container {  
+    width: 340px;  
+    height: 33px;  
+    background-color: #E6EEF1;     
+    padding: 5px;  
+    line-height: 45px;  
+    text-align: center;  
+    border: solid gray 1px;  
+}  
+.legend-control-container {  
+    width: 180px;
+    height: 160px; 
+    line-height: 10px;     
+    background-color: #E6EEF1;   
+    text-align: center;  
+    border: solid gray 1px;  
+}  
 
-    .range-slider {  
-        width: 55%;  
-    }  
-    
-    .step {  
-        width: 20%;  
-    }  
-    
-    .step img {  
-        width: 100%;  
-    }  
-    
-    #forward {  
-        float: right;  
-    }  
-    
-    #reverse {  
-        float: left;  
-    }
-.leaflet-popup-content p {
-    margin: 0.1em 0;
-    text-align: center;
+.range-slider {  
+    width: 250px;
+}  
 
+.step {  
+    width: 40px;
+}  
+
+.step img {  
+    width: 100%;  
+    height: auto;  
+} 
+.temporal-legend {
+   		font: 20px/20px Arial, Helvetica, sans-serif;
+   		background: white;
+   		background: rgba(255,255,255,0.8);
+   		box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        height: 10px;
+}
+p2 {
+    color:#d44427;
+    margin: 0px;
+    padding:0px;
+}
+h2 {
+    color:#d44427;
+}
+#legendTitle {
+  	text-align: center;
+ 	margin-bottom: 10px;
+
+}
+.symbolsContainer {
+	float: left;
+	margin-left: 75px;
+}
+.legendCircle {
+   	border-radius:50%; 
+   	border: 1px solid #d44427; 
+   	background: rgba(0, 87, 119, .5);
+ 	display: inline-block;
+}
+.legendValue {
+	position: absolute;
+    right: 15px;
+ 
+
+}
+
+.legend.leaflet-control {
+    width:130px;
+    height:130pxpx;
+}
+.selector-container {
+    width: 100px;
+    height: 100px
+}
+#titlebar {
+    position: relative;
+    left: 10px;
+    top:10px;
+    height: 20px;
+    width: 940px;
+    background: rgba(0, 87, 119, 1);
+    border-style: solid;
+    border-color: rgba(0, 87, 119, 1);
+    border-width: 2;
+    color: #d44427
+
+}
+#footer {
+    position: relative;
+    left: 10px;
+    height: 20px;
+    width: 940px;
+    background: rgba(0, 87, 119, 1);
+    border-style: solid;
+    border-color: rgba(0, 87, 119, 1);
+    border-width: 2;
+}
+
+#wrapper {
+    height: 872px;
+    width: 966px;
+    background: #4D89A0;
+
+}
+.filter-control-container {
+    height: 100px;
+    width: 100px;
+    background-color: #E6EEF1;   
+    text-align: center;  
+    border: solid gray 1px;  
 }

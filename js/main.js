@@ -1,8 +1,13 @@
+// Reference Webpage
+// https://cartographicperspectives.org/index.php/journal/article/view/cp76-donohue-et-al/1307
+// Examples https://geography.wisc.edu/cartography/education/G575/G575SP2019.html  Ice Age tree explorer for filter selection
+var map;
+var dataStats = {};
 //function to instantiate the Leaflet map
 function createMap(){
     //create the map
     map = L.map('map', {
-        center: [44.589411508231045, -89.87867457355331],
+        center: [44.589411508231045, -88.98867457355331],
         zoom: 7
     });
 
@@ -12,11 +17,11 @@ function createMap(){
     });;
     Esri_WorldTopoMap.addTo(map)
     //call getData function
-    getData();
+    getData(map);
     map.setMaxBounds(map.getBounds());
 };
 
-function calculateMinValue(data){
+function calcStats(data){
     //create empty array to store all data values
     var allValues = [];
     //loop through each campus
@@ -30,42 +35,28 @@ function calculateMinValue(data){
         }
     }
     //get minimum value of our array
-    var minValue = Math.min(...allValues)
-    return minValue;
+    dataStats.min = Math.min(...allValues);
+    dataStats.max = Math.max(...allValues);
+    //calculate meanValue
+    var sum = allValues.reduce(function(a, b){return a+b;});
+    dataStats.mean = sum/ allValues.length;
+    console.log(dataStats)
 }
 
-function calculateMaxValue(data){
-    //create empty array to store all data values
-    var allValues = [];
-    //loop through each campus
-    for(var i of data.features){
-        //loop through each year
-        for(var year = 2013; year < 2024; year+=1){
-              //get enrollment for current year
-              var value = i.properties[("F"+ String(year))];
-              //add value to array
-              allValues.push(value);
-        }
-    }
-    //get minimum value of our array
-    var maxValue = Math.max(...allValues)
-    return maxValue;
-}
 //calculate the radius of each proportional symbol
+
 function calcPropRadius(attValue) {
     //constant factor adjusts symbol sizes evenly
-    var minRadius = 0;
-    var maxRadius = 75;
+    var minRadius = 2;
+    var maxRadius = 50;  //increasing this means redoing label css
     var minArea = (Math.PI*Math.pow(minRadius,2));
     var maxArea = (Math.PI*Math.pow(maxRadius,2));
     var areaDif = maxArea - minArea
 
-    //Flannery Apperance Compensation formula
-    //var radius = 1.0083 * Math.pow(attValue/minValue,0.5715) * minRadius
-    
     //interpolated Scaling - Flannery's method does not work for such a large variance of values.
     // I chose the interpolated scale to better symbolize the features
-    radius = Math.sqrt(minArea + ((attValue - minValue)/(maxValue-minValue)*areaDif)/Math.PI)
+    
+    radius = Math.sqrt(minArea + ((attValue - dataStats.min)/(dataStats.max-dataStats.min)*areaDif)/Math.PI)
     
     return radius;
 };
@@ -85,10 +76,7 @@ function processData(data){
             attributes.push(attribute);
         };
     };
-
-    //check result
-    //console.log(attributes);
-
+    //console.log(attributes)
     return attributes;
 };
 //function to retrieve the data and place it on the map
@@ -100,22 +88,31 @@ function getData(){
         })
         .then(function(json){
              //calculate minimum data value
+             calcStats(json);
              var attributes = processData(json);
              //console.log(attributes)
-             minValue = calculateMinValue(json);
-             maxValue = calculateMaxValue(json);
             //call function to create proportional symbols
             createPropSymbols(json, attributes);
             createSequenceControls(attributes);
-        });
-           
+            //createfilterControls()
+            var attribute = attributes[0].split('F')[1];
+            createLegend(dataStats.min, dataStats.max);
+
+        })
 };
-
-
 //function from https://stackoverflow.com/questions/2901102/how-to-format-a-number-with-commas-as-thousands-separators
 function numberWithCommas(x) {
     return x.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",");
 }
+
+//Example 1.2 line 1...PopupContent constructor function
+function PopupContent(properties, attribute){
+    this.properties = properties;
+    this.attribute = attribute;
+    this.year = attribute.split("F")[1];
+    this.enrollment = this.properties[attribute];
+    this.formatted = "<p><b>Campus:</b> " + this.properties.NAME + "</p><p><b>Campus Type: </b>" + this.properties.Type + "</p><p><b>Enrollment in " + this.year + ":</b> " + numberWithCommas(this.enrollment) + "</p>";
+};
 
 //function to convert markers to circle markers
 function pointToLayer(feature, latlng, attributes){
@@ -130,7 +127,7 @@ function pointToLayer(feature, latlng, attributes){
         color: "#d44427",
         weight: 1,
         opacity: 1,
-        fillOpacity: 0.8
+        fillOpacity: 0.6
     };
 
     //For each feature, determine its value for the selected attribute
@@ -142,15 +139,9 @@ function pointToLayer(feature, latlng, attributes){
     //create circle marker layer
     var layer = L.circleMarker(latlng, options);
 
-    //build popup content string starting with city...Example 2.1 line 24
-    var popupContent = "<p><b>Campus: </b> " + feature.properties.NAME + "</p>";
-    popupContent += "<p><b>Campus Type: </b> " + feature.properties.Type + "</p>";
-    //add formatted attribute to popup content string
-    var year = attribute.split("F")[1];
-    popupContent += "<p><b>Enrollment in " + year + ": </b> " + numberWithCommas(feature.properties[attribute]) + "</p>";
+    var popupContent = new PopupContent(feature.properties, attribute)
 
-    //bind the popup to the circle marker
-    layer.bindPopup(popupContent);
+    layer.bindPopup(popupContent.formatted)
 
     //return the circle marker to the L.geoJson pointToLayer option
     return layer;
@@ -160,11 +151,13 @@ function pointToLayer(feature, latlng, attributes){
 function createPropSymbols(data,attributes){
 
     //create a Leaflet GeoJSON layer and add it to the map
-    L.geoJson(data, {
+    var featureLayer = L.geoJson(data, {
         pointToLayer: function(feature, latlong){
             return pointToLayer(feature, latlong, attributes);
         }
     }).addTo(map);
+    console.log(featureLayer)
+    createSearch(featureLayer)
 };
 //Step 10: Resize proportional symbols according to new attribute values
 function updatePropSymbols(attribute){
@@ -176,37 +169,48 @@ function updatePropSymbols(attribute){
             var radius = calcPropRadius(props[attribute]);
             layer.setRadius(radius);
 
-            //build popup content string starting with city...Example 2.1 line 24
-            var popupContent = "<p><b>Campus: </b> " + layer.feature.properties.NAME + "</p>";
-            popupContent += "<p><b>Campus Type: </b> " + layer.feature.properties.Type + "</p>";
-            //add formatted attribute to popup content string
+            var popupContent = new PopupContent(props, attribute)
             var year = attribute.split("F")[1];
-
-            popupContent += "<p><b>Enrollment in " + year + ": </b> " + numberWithCommas(layer.feature.properties[attribute]) + "</p>";
-            
+            console.log(year)
+            document.querySelector("span.year").innerHTML = year;
             //update popup content            
             popup = layer.getPopup();            
-            popup.setContent(popupContent).update();
+            popup.setContent(popupContent.formatted).update();
+            
         } else {
             //console.log(attribute)
         }
     });
 };
+
 //Step 1: Create new sequence controls
 function createSequenceControls(attributes){
-    //create range input element (slider)
-    var slider = "<input class='range-slider' type='range'></input>";
-    document.querySelector("#panel").insertAdjacentHTML('beforeend',slider);
-    //set slider attributes
-    document.querySelector(".range-slider").max = 10;
-    document.querySelector(".range-slider").min = 0;
-    document.querySelector(".range-slider").value = 0;
-    document.querySelector(".range-slider").step = 1;
-    //below Example 3.6...add step buttons
-    document.querySelector('#panel').insertAdjacentHTML('beforeend','<button class="step" id="reverse"></button>');
-    document.querySelector('#panel').insertAdjacentHTML('beforeend','<button class="step" id="forward"></button>');
-    document.querySelector('#reverse').insertAdjacentHTML('beforeend',"<img src='img/noun-reverse-3670440.png'>")
-    document.querySelector('#forward').insertAdjacentHTML('beforeend',"<img src='img/noun-forward-3670425.png'>")
+    var SequenceControl = L.Control.extend({
+        options: {
+            position: 'bottomleft'
+
+        },
+        onAdd: function () {
+            // create the control container div with a particular class name
+            var container = L.DomUtil.create('div', 'sequence-control-container');
+
+        //create range input element (slider)
+        container.insertAdjacentHTML('beforeend', '<button class="step" id="reverse" title="Reverse"><img src="img/noun-reverse-3670440.png"></button>'); 
+        container.insertAdjacentHTML('beforeend', '<input class="range-slider" type="range">')
+        container.querySelector(".range-slider").max = 10;
+        container.querySelector(".range-slider").min = 0;
+        container.querySelector(".range-slider").value = 0;
+        container.querySelector(".range-slider").step = 1;
+        container.insertAdjacentHTML('beforeend', '<button class="step" id="forward" title="Forward"><img src="img/noun-forward-3670425.png"></button>');
+        //disable any mouse event listeners for the container
+        L.DomEvent.disableClickPropagation(container);
+        
+        return container;
+        
+        }
+    });
+    map.addControl(new SequenceControl());
+
     //Step 5: click listener for buttons
     document.querySelectorAll('.step').forEach(function(step){
         step.addEventListener("click", function(){
@@ -224,7 +228,7 @@ function createSequenceControls(attributes){
             //Step 8: update slider
             document.querySelector('.range-slider').value = index;
             updatePropSymbols(attributes[index]);
-            //console.log(attributes[index])
+
         })
     })
 
@@ -233,10 +237,84 @@ function createSequenceControls(attributes){
     //Step 6: get the new index value
     var index = this.value;
     updatePropSymbols(attributes[index]);
-    //console.log(attributes[index])
-})
+    });
+};
+
+function createLegend(attributes){
+    var LegendControl = L.Control.extend({
+        options: {
+            position: 'bottomright'
+        },
+
+        onAdd: function () {
+            // create the control container with a particular class name
+            var container = L.DomUtil.create('div', 'legend-control-container');
+
+            container.innerHTML = '<h2 class="temporalLegend"><b>Enrollment in <span class="year">2023</span></b></h2>';
+
+            //Step 1: start attribute legend svg string
+            var svg = '<svg id="attribute-legend" width="180px" height="130px">';
+            //array of circle names to base loop on
+            var circles = ["max", "mean", "min"];
+             //Step 2: loop to add each circle and text to svg string
+            for (var i=0; i<circles.length; i++){
+                var radius = calcPropRadius(dataStats[circles[i]]);
+                var cy = 110- radius
+                //circle string
+                svg += '<circle class="legend-circle" id="' + circles[i] + '" r="' + radius + '"cy="' + cy + '" fill="#005777" fill-opacity="0.6" stroke="#d44427" cx="65"/>';
+
+                //evenly space labels
+                var textY = i * 40 +30;
+                
+                //text string            
+                svg += '<text id="' + circles[i] + '-text" x="125" y="' + textY + '">' + numberWithCommas(Math.round(dataStats[circles[i]],0)) + '</text>';
+
+            };
+            //close svg string
+            svg+= "</svg>";
+            //add attribute legend svg to container
+            container.insertAdjacentHTML('beforeend',svg);
+            
+            return container;
+        }
+    });
+
+    map.addControl(new LegendControl());
 
 };
 
+function createSearch(featureLayer){
+    var searchControl = new L.Control.Search({
+		layer: featureLayer,
+		propertyName: 'NAME',
+		marker: false,
+		moveToLocation: function(latlng, title, map) {
+            console.log(map)
+			//map.fitBounds( latlng.layer.getBounds() );
+			//var zoom = map.getBoundsZoom(layer.latlng.getBounds());
+  			map.setView(latlng, 14); // access the zoom
+		}
+	});
+
+	searchControl.on('search:locationfound', function(e) {
+		
+		console.log('search:locationfound', );
+
+		//map.removeLayer(this._markerSearch)
+
+		e.layer.setStyle({fillColor: '#3f0', color: '#0f0'});
+		if(e.layer._popup)
+			e.layer.openPopup();
+
+	}).on('search:collapsed', function(e) {
+
+		featureLayer.eachLayer(function(layer) {	//restore feature color
+			featureLayer.resetStyle(layer);
+		});	
+	});
+	
+	map.addControl( searchControl );  //inizialize search control
+
+};
 
 document.addEventListener('DOMContentLoaded',createMap)
